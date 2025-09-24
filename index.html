@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NextStep 주가예측</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        /* 기본 폰트 및 스타일 설정 */
+        body {
+            font-family: 'Pretendard', sans-serif;
+        }
+        /* 페이지 전환 시 부드러운 효과를 위한 기본 스타일 */
+        .page {
+            display: none;
+            animation: fadeIn 0.5s;
+        }
+        .page.active {
+            display: block;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        /* 활성화된 네비게이션 링크 스타일 */
+        .nav-link.active {
+            font-weight: bold;
+            color: #3B82F6; /* blue-500 */
+            border-bottom: 2px solid #3B82F6;
+        }
+        /* 테이블 정렬 아이콘 스타일 */
+        th .sort-icon {
+            opacity: 0.3;
+        }
+        th.sorted .sort-icon {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+
+    <!-- 전체 애플리케이션 컨테이너 -->
+    <div id="app" class="max-w-7xl mx-auto">
+
+        <!-- 1. 로그인/회원가입 페이지 -->
+        <div id="auth-container" class="page active">
+            <div class="min-h-screen flex items-center justify-center">
+                <!-- 로그인 폼 -->
+                <div id="login-form" class="bg-white p-8 rounded-lg shadow-md w-96">
+                    <h2 class="text-2xl font-bold mb-6 text-center">로그인</h2>
+                    <div class="mb-4">
+                        <label for="login-id" class="block text-sm font-medium text-gray-700">아이디</label>
+                        <input type="text" id="login-id" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div class="mb-6 relative">
+                        <label for="login-password" class="block text-sm font-medium text-gray-700">비밀번호</label>
+                        <input type="password" id="login-password" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                        <span class="absolute inset-y-0 right-0 pr-3 flex items-center cursor-pointer top-6" onclick="togglePasswordVisibility('login-password')">
+                            <i class="fas fa-eye"></i>
+                        </span>
+                    </div>
+                    <button id="login-btn" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">로그인</button>
+                    <p class="text-center text-sm text-gray-600 mt-4">
+                        계정이 없으신가요? <a href="#" id="show-signup-link" class="font-medium text-blue-600 hover:text-blue-500">계정 만들기</a>
+                    </p>
+                </div>
+
+                <!-- 회원가입 폼 (초기 숨김) -->
+                <div id="signup-form" class="bg-white p-8 rounded-lg shadow-md w-96" style="display: none;">
+                    <h2 class="text-2xl font-bold mb-6 text-center">회원가입</h2>
+                    <div class="mb-4">
+                        <label for="signup-email" class="block text-sm font-medium text-gray-700">이메일</label>
+                        <input type="email" id="signup-email" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                    </div>
+                    <div class="mb-4">
+                        <label for="signup-id" class="block text-sm font-medium text-gray-700">아이디</label>
+                        <input type="text" id="signup-id" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                    </div>
+                    <div class="mb-6 relative">
+                        <label for="signup-password" class="block text-sm font-medium text-gray-700">비밀번호</label>
+                        <input type="password" id="signup-password" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                         <span class="absolute inset-y-0 right-0 pr-3 flex items-center cursor-pointer top-6" onclick="togglePasswordVisibility('signup-password')">
+                            <i class="fas fa-eye"></i>
+                        </span>
+                    </div>
+                    <button id="signup-btn" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">가입하기</button>
+                    <p class="text-center text-sm text-gray-600 mt-4">
+                        이미 계정이 있으신가요? <a href="#" id="show-login-link" class="font-medium text-blue-600 hover:text-blue-500">로그인</a>
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. 메인 애플리케이션 컨텐츠 (로그인 후 표시) -->
+        <div id="main-app" class="hidden">
+            <!-- 헤더 및 네비게이션 -->
+            <header class="bg-white shadow-md sticky top-0 z-10">
+                <nav class="container mx-auto px-4 py-3 flex justify-between items-center">
+                    <div class="text-2xl font-bold text-blue-600">NextStep</div>
+                    <ul class="flex space-x-6 text-lg">
+                        <li><a href="#" class="nav-link active" data-page="home">홈</a></li>
+                        <li><a href="#" class="nav-link" data-page="domestic">국내</a></li>
+                        <li><a href="#" class="nav-link" data-page="ai-analysis">AI 분석</a></li>
+                        <li><a href="#" class="nav-link" data-page="market">시장</a></li>
+                        <li><a href="#" class="nav-link" data-page="news">뉴스</a></li>
+                        <li><a href="#" class="nav-link" data-page="mock-investment">모의 투자</a></li>
+                        <li><a href="#" class="nav-link" data-page="my">MY</a></li>
+                    </ul>
+                    <button id="logout-btn" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2 px-4 rounded-lg text-sm">로그아웃</button>
+                </nav>
+            </header>
+
+            <!-- 페이지 컨텐츠 영역 -->
+            <main class="p-6">
+                <!-- 홈 페이지 -->
+                <div id="home-page" class="page active">
+                    <h1 class="text-3xl font-bold mb-6">홈</h1>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <!-- 주요 지수 위젯 -->
+                        <div class="col-span-1 bg-white p-4 rounded-lg shadow">
+                            <h2 class="font-bold mb-2">주요 지수</h2>
+                            <ul class="space-y-2">
+                                <li class="flex justify-between items-center"><span><i class="fas fa-coins text-yellow-500 mr-2"></i>금 시세</span> <span class="font-semibold">87,500 원/g</span></li>
+                                <li class="flex justify-between items-center"><span><i class="fas fa-gas-pump text-red-500 mr-2"></i>유가 (휘발유)</span> <span class="font-semibold">1,750 원/L</span></li>
+                                <li class="flex justify-between items-center"><span><i class="fas fa-chart-line text-green-500 mr-2"></i>KOSPI</span> <span class="font-semibold text-green-600">2,850.43 ▲ 12.5</span></li>
+                            </ul>
+                        </div>
+                        <!-- KOSPI 그래프 위젯 -->
+                        <div class="col-span-2 bg-white p-4 rounded-lg shadow">
+                            <div class="flex justify-between items-center mb-2">
+                                <h2 class="font-bold">KOSPI 지수</h2>
+                                <div class="flex space-x-1">
+                                    <button class="px-2 py-1 text-xs bg-blue-100 rounded">1일</button>
+                                    <button class="px-2 py-1 text-xs bg-gray-200 rounded">1주</button>
+                                    <button class="px-2 py-1 text-xs bg-gray-200 rounded">1달</button>
+                                    <button class="px-2 py-1 text-xs bg-gray-200 rounded">1년</button>
+                                </div>
+                            </div>
+                            <div class="h-48 bg-gray-200 rounded flex items-center justify-center"><p class="text-gray-500">차트 영역</p></div>
+                        </div>
+                        <!-- 종목 위젯 -->
+                        <div class="col-span-3 bg-white p-4 rounded-lg shadow">
+                            <div class="flex justify-between items-center mb-2">
+                                <h2 class="font-bold">종목</h2>
+                                <div class="flex items-center space-x-2">
+                                    <span>거래량 상위</span>
+                                    <label class="relative inline-flex items-center cursor-pointer">
+                                        <input type="checkbox" value="" class="sr-only peer">
+                                        <div class="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                                    </label>
+                                    <span class="font-semibold">즐겨찾기</span>
+                                </div>
+                            </div>
+                            <!-- 종목 리스트 테이블 -->
+                            <table class="w-full text-sm text-left">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="p-2">종목명</th><th>현재가</th><th>등락률</th><th>거래량</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr class="border-b">
+                                        <td class="p-2 font-semibold">삼성전자</td><td>85,000</td><td class="text-red-600">+1.5%</td><td>15,123,456</td>
+                                    </tr>
+                                    <tr class="border-b">
+                                        <td class="p-2 font-semibold">SK하이닉스</td><td>130,500</td><td class="text-blue-600">-0.8%</td><td>8,765,432</td>
+                                    </tr>
+                                    <tr class="border-b">
+                                        <td class="p-2 font-semibold">LG에너지솔루션</td><td>450,000</td><td class="text-red-600">+2.1%</td><td>5,987,654</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 국내 페이지 -->
+                <div id="domestic-page" class="page">
+                    <h1 class="text-3xl font-bold mb-6">국내 KOSPI</h1>
+                    <div class="bg-white p-6 rounded-lg shadow">
+                        <div class="mb-4">
+                            <input type="text" id="stock-search" placeholder="종목명 또는 코드를 검색하세요." class="w-full px-4 py-2 border rounded-lg">
+                        </div>
+                        <table class="w-full text-left" id="stock-table">
+                            <thead class="bg-gray-100">
+                                <tr>
+                                    <th class="p-3 cursor-pointer" data-sort="favorite"><i class="fas fa-star text-gray-400"></i></th>
+                                    <th class="p-3 cursor-pointer" data-sort="name">종목명 <i class="fas fa-sort sort-icon"></i></th>
+                                    <th class="p-3 cursor-pointer text-right" data-sort="price">현재가 <i class="fas fa-sort sort-icon"></i></th>
+                                    <th class="p-3 cursor-pointer text-right" data-sort="change">등락 <i class="fas fa-sort sort-icon"></i></th>
+                                    <th class="p-3 cursor-pointer text-right" data-sort="changePercent">등락률 (%) <i class="fas fa-sort sort-icon"></i></th>
+                                    <th class="p-3 cursor-pointer text-right" data-sort="volume">거래량 <i class="fas fa-sort sort-icon"></i></th>
+                                </tr>
+                            </thead>
+                            <tbody id="stock-table-body">
+                                <!-- JS로 데이터가 채워질 영역 -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- AI 분석 페이지 -->
+                <div id="ai-analysis-page" class="page">
+                    <h1 class="text-3xl font-bold mb-6">AI 분석</h1>
+                     <div class="bg-white p-6 rounded-lg shadow">
+                        <div class="bg-blue-100 border-l-4 border-blue-500 text-blue-700 p-4 mb-6" role="alert">
+                          <p class="font-bold">AI 예측 데이터</p>
+                          <p>이 페이지는 AI 모델이 예측한 미래 주가 데이터입니다. '국내' 페이지와 동일한 UI로 제공하여 사용자 편의성을 높였습니다.</p>
+                        </div>
+                        <div class="mb-4">
+                            <input type="text" id="ai-stock-search" placeholder="종목명 또는 코드를 검색하세요." class="w-full px-4 py-2 border rounded-lg">
+                        </div>
+                        <table class="w-full text-left" id="ai-stock-table">
+                           <thead class="bg-gray-100">
+                                <tr>
+                                    <th class="p-3 cursor-pointer" data-sort="favorite"><i class="fas fa-star text-gray-400"></i></th>
+                                    <th class="p-3 cursor-pointer" data-sort="name">종목명 <i class="fas fa-sort sort-icon"></i></th>
+                                    <th class="p-3 cursor-pointer text-right" data-sort="predictedPrice">예측 종가 (1주 후) <i class="fas fa-sort sort-icon"></i></th>
+                                    <th class="p-3 cursor-pointer text-right" data-sort="expectedChange">예상 등락 <i class="fas fa-sort sort-icon"></i></th>
+                                    <th class="p-3 cursor-pointer text-right" data-sort="expectedChangePercent">예상 등락률 (%) <i class="fas fa-sort sort-icon"></i></th>
+                                </tr>
+                            </thead>
+                            <tbody id="ai-stock-table-body">
+                                <!-- JS로 데이터가 채워질 영역 -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- 시장 페이지 -->
+                <div id="market-page" class="page">
+                    <h1 class="text-3xl font-bold mb-6">시장 정보</h1>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="bg-white p-6 rounded-lg shadow">
+                            <h2 class="text-xl font-bold mb-4">금 시세 상세</h2>
+                            <p>1kg: 87,500,000 원</p>
+                            <p>100g: 8,750,000 원</p>
+                            <div class="h-40 mt-4 bg-gray-200 rounded flex items-center justify-center"><p class="text-gray-500">금 시세 차트</p></div>
+                        </div>
+                         <div class="bg-white p-6 rounded-lg shadow">
+                            <h2 class="text-xl font-bold mb-4">유가 상세</h2>
+                            <p>휘발유: 1,750 원/L</p>
+                            <p>경유: 1,680 원/L</p>
+                            <p>등유: 1,200 원/L</p>
+                            <div class="h-40 mt-4 bg-gray-200 rounded flex items-center justify-center"><p class="text-gray-500">유가 차트</p></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 뉴스 페이지 -->
+                <div id="news-page" class="page">
+                    <h1 class="text-3xl font-bold mb-6">뉴스</h1>
+                    <div class="bg-white p-10 rounded-lg shadow text-center">
+                        <i class="fas fa-newspaper text-4xl text-gray-400 mb-4"></i>
+                        <h2 class="text-xl font-semibold">뉴스 기능은 현재 준비 중입니다.</h2>
+                        <p class="text-gray-600 mt-2">AI 뉴스 요약, 감성 분석 등 유용한 기능을 곧 선보일 예정입니다.</p>
+                    </div>
+                </div>
+
+                <!-- 모의 투자 페이지 -->
+                <div id="mock-investment-page" class="page">
+                    <h1 class="text-3xl font-bold mb-6">모의 투자</h1>
+                     <div class="bg-white p-10 rounded-lg shadow text-center">
+                        <i class="fas fa-chart-pie text-4xl text-gray-400 mb-4"></i>
+                        <h2 class="text-xl font-semibold">모의 투자 기능은 현재 준비 중입니다.</h2>
+                        <p class="text-gray-600 mt-2">가상 자금으로 투자를 경험하고 AI 예측을 테스트해보세요.</p>
+                    </div>
+                </div>
+
+                <!-- MY 페이지 -->
+                <div id="my-page" class="page">
+                    <h1 class="text-3xl font-bold mb-6">MY 페이지</h1>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="bg-white p-6 rounded-lg shadow">
+                             <h2 class="text-xl font-bold mb-4">계정 설정</h2>
+                             <div class="space-y-3">
+                                <p><strong>아이디:</strong> user123</p>
+                                <p><strong>이메일:</strong> user123@example.com</p>
+                                <button class="mt-2 px-4 py-2 bg-gray-200 rounded">비밀번호 변경</button>
+                                <button class="mt-2 px-4 py-2 text-red-600">회원 탈퇴</button>
+                             </div>
+                        </div>
+                        <div class="bg-white p-6 rounded-lg shadow">
+                            <h2 class="text-xl font-bold mb-4">즐겨찾기 종목</h2>
+                            <ul id="favorite-list" class="space-y-2">
+                                <!-- JS로 즐겨찾기 목록이 채워질 영역 -->
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function () {
+
+        // --- Mock 데이터 ---
+        // 백엔드 API로부터 받아올 데이터의 형태를 시뮬레이션합니다.
+        // 실제 구현 시, 이 부분은 fetch 등을 이용한 API 호출로 대체됩니다.
+        let stockData = [
+            { id: 1, code: '005930', name: '삼성전자', price: 85000, change: 1200, changePercent: 1.43, volume: 15000000, isFavorite: false },
+            { id: 2, code: '000660', name: 'SK하이닉스', price: 130000, change: -500, changePercent: -0.38, volume: 8700000, isFavorite: true },
+            { id: 3, code: '051910', name: 'LG화학', price: 780000, change: 15000, changePercent: 1.96, volume: 1200000, isFavorite: false },
+            { id: 4, code: '207940', name: '삼성바이오로직스', price: 890000, change: -10000, changePercent: -1.11, volume: 500000, isFavorite: true },
+            { id: 5, code: '005380', name: '현대차', price: 230000, change: 5000, changePercent: 2.22, volume: 2500000, isFavorite: false },
+            { id: 6, code: '035420', name: 'NAVER', price: 410000, change: 0, changePercent: 0, volume: 900000, isFavorite: false },
+        ];
+        
+        let aiStockData = [
+            { id: 1, code: '005930', name: '삼성전자', predictedPrice: 86500, expectedChange: 1500, expectedChangePercent: 1.76, isFavorite: false },
+            { id: 2, code: '000660', name: 'SK하이닉스', predictedPrice: 129000, expectedChange: -1000, expectedChangePercent: -0.77, isFavorite: true },
+            { id: 3, code: '051910', name: 'LG화학', predictedPrice: 810000, expectedChange: 30000, expectedChangePercent: 3.85, isFavorite: false },
+            { id: 4, code: '207940', name: '삼성바이오로직스', predictedPrice: 880000, expectedChange: -10000, expectedChangePercent: -1.12, isFavorite: true },
+            { id: 5, code: '005380', name: '현대차', predictedPrice: 245000, expectedChange: 15000, expectedChangePercent: 6.52, isFavorite: false },
+            { id: 6, code: '035420', name: 'NAVER', predictedPrice: 415000, expectedChange: 5000, expectedChangePercent: 1.22, isFavorite: false },
+        ];
+
+        // --- DOM 요소 ---
+        const authContainer = document.getElementById('auth-container');
+        const mainApp = document.getElementById('main-app');
+        const pages = document.querySelectorAll('.page');
+        const navLinks = document.querySelectorAll('.nav-link');
+        const loginForm = document.getElementById('login-form');
+        const signupForm = document.getElementById('signup-form');
+        let currentSort = { key: 'name', order: 'asc' };
+        
+        // --- 함수 ---
+
+        // 페이지 전환 함수
+        const showPage = (pageId) => {
+            pages.forEach(page => {
+                page.classList.remove('active');
+            });
+            document.getElementById(pageId + '-page').classList.add('active');
+
+            navLinks.forEach(link => {
+                link.classList.toggle('active', link.dataset.page === pageId);
+            });
+        };
+
+        // 비밀번호 가리기/보이기 토글
+        window.togglePasswordVisibility = (inputId) => {
+            const input = document.getElementById(inputId);
+            const icon = input.nextElementSibling.querySelector('i');
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.classList.replace('fa-eye', 'fa-eye-slash');
+            } else {
+                input.type = 'password';
+                icon.classList.replace('fa-eye-slash', 'fa-eye');
+            }
+        }
+        
+        // 숫자 포맷팅 (e.g., 10000 -> 10,000)
+        const formatNumber = (num) => num.toLocaleString();
+
+        // 등락에 따른 색상 반환
+        const getChangeColor = (value) => {
+            if (value > 0) return 'text-red-600';
+            if (value < 0) return 'text-blue-600';
+            return 'text-gray-700';
+        };
+
+        // 국내 주식 테이블 렌더링
+        const renderStockTable = (data) => {
+            const tableBody = document.getElementById('stock-table-body');
+            tableBody.innerHTML = data.map(stock => `
+                <tr class="border-b hover:bg-gray-50 cursor-pointer">
+                    <td class="p-3"><i class="fas fa-star ${stock.isFavorite ? 'text-yellow-400' : 'text-gray-300'}" data-id="${stock.id}"></i></td>
+                    <td class="p-3 font-semibold">${stock.name}</td>
+                    <td class="p-3 text-right">${formatNumber(stock.price)}</td>
+                    <td class="p-3 text-right ${getChangeColor(stock.change)}">${stock.change > 0 ? '▲' : (stock.change < 0 ? '▼' : '')} ${formatNumber(Math.abs(stock.change))}</td>
+                    <td class="p-3 text-right ${getChangeColor(stock.changePercent)}">${stock.changePercent.toFixed(2)}%</td>
+                    <td class="p-3 text-right">${formatNumber(stock.volume)}</td>
+                </tr>
+            `).join('');
+        };
+        
+        // AI 분석 테이블 렌더링
+         const renderAiStockTable = (data) => {
+            const tableBody = document.getElementById('ai-stock-table-body');
+            tableBody.innerHTML = data.map(stock => `
+                <tr class="border-b hover:bg-gray-50 cursor-pointer">
+                    <td class="p-3"><i class="fas fa-star ${stock.isFavorite ? 'text-yellow-400' : 'text-gray-300'}" data-id="${stock.id}"></i></td>
+                    <td class="p-3 font-semibold">${stock.name}</td>
+                    <td class="p-3 text-right">${formatNumber(stock.predictedPrice)}</td>
+                    <td class="p-3 text-right ${getChangeColor(stock.expectedChange)}">${stock.expectedChange > 0 ? '▲' : (stock.expectedChange < 0 ? '▼' : '')} ${formatNumber(Math.abs(stock.expectedChange))}</td>
+                    <td class="p-3 text-right ${getChangeColor(stock.expectedChangePercent)}">${stock.expectedChangePercent.toFixed(2)}%</td>
+                </tr>
+            `).join('');
+        };
+
+
+        // 즐겨찾기 목록 렌더링
+        const renderFavoriteList = () => {
+            const favoriteList = document.getElementById('favorite-list');
+            const favorites = stockData.filter(s => s.isFavorite);
+            if (favorites.length === 0) {
+                favoriteList.innerHTML = `<li class="text-gray-500">즐겨찾기한 종목이 없습니다.</li>`;
+                return;
+            }
+            favoriteList.innerHTML = favorites.map(stock => `
+                <li class="flex justify-between items-center p-2 rounded hover:bg-gray-100">
+                    <span>${stock.name}</span>
+                    <button class="text-red-500 text-sm" data-id="${stock.id}">삭제</button>
+                </li>
+            `).join('');
+        };
+
+        // 테이블 데이터 정렬
+        const sortTable = (tableId, data, key) => {
+            const tableHeaders = document.querySelectorAll(`#${tableId} th`);
+            
+            tableHeaders.forEach(th => {
+                th.classList.remove('sorted');
+                const icon = th.querySelector('.sort-icon');
+                if (icon) icon.className = 'fas fa-sort sort-icon';
+            });
+
+            const targetTh = document.querySelector(`#${tableId} th[data-sort="${key}"]`);
+            if (!targetTh) return data;
+            
+            targetTh.classList.add('sorted');
+            const icon = targetTh.querySelector('.sort-icon');
+
+            const order = (currentSort.key === key && currentSort.order === 'asc') ? 'desc' : 'asc';
+            currentSort = { key, order };
+            
+            if(icon) icon.className = `fas fa-sort-${order === 'asc' ? 'up' : 'down'} sort-icon`;
+
+            return [...data].sort((a, b) => {
+                if (a[key] < b[key]) return order === 'asc' ? -1 : 1;
+                if (a[key] > b[key]) return order === 'asc' ? 1 : -1;
+                return 0;
+            });
+        };
+
+        // --- 이벤트 리스너 ---
+
+        // 로그인/회원가입 폼 전환
+        document.getElementById('show-signup-link').addEventListener('click', (e) => {
+            e.preventDefault();
+            loginForm.style.display = 'none';
+            signupForm.style.display = 'block';
+        });
+        document.getElementById('show-login-link').addEventListener('click', (e) => {
+            e.preventDefault();
+            signupForm.style.display = 'none';
+            loginForm.style.display = 'block';
+        });
+
+        // 로그인/회원가입/로그아웃 버튼 (시뮬레이션)
+        document.getElementById('login-btn').addEventListener('click', () => {
+            authContainer.classList.remove('active');
+            mainApp.classList.remove('hidden');
+        });
+        document.getElementById('signup-btn').addEventListener('click', () => {
+            // 실제로는 회원가입 API 호출 후 성공 시 로그인 처리
+            alert('회원가입이 완료되었습니다. 로그인 해주세요.');
+            signupForm.style.display = 'none';
+            loginForm.style.display = 'block';
+        });
+        document.getElementById('logout-btn').addEventListener('click', () => {
+            authContainer.classList.add('active');
+            mainApp.classList.add('hidden');
+            showPage('home'); // 로그아웃 후 홈으로
+        });
+
+        // 네비게이션 링크 클릭
+        navLinks.forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const pageId = e.target.dataset.page;
+                showPage(pageId);
+                if(pageId === 'my') {
+                    renderFavoriteList(); // MY 페이지 클릭 시 즐겨찾기 목록 갱신
+                }
+            });
+        });
+
+        // 국내 주식 테이블 헤더 클릭 (정렬)
+        document.querySelector('#stock-table thead').addEventListener('click', (e) => {
+            const key = e.target.closest('th')?.dataset.sort;
+            if (key) {
+                const sortedData = sortTable('stock-table', stockData, key);
+                renderStockTable(sortedData);
+            }
+        });
+        
+        // AI 분석 테이블 헤더 클릭 (정렬)
+         document.querySelector('#ai-stock-table thead').addEventListener('click', (e) => {
+            const key = e.target.closest('th')?.dataset.sort;
+            if (key) {
+                const sortedData = sortTable('ai-stock-table', aiStockData, key);
+                renderAiStockTable(sortedData);
+            }
+        });
+
+        // 주식 검색 (국내, AI분석)
+        document.getElementById('stock-search').addEventListener('input', (e) => {
+            const searchTerm = e.target.value.toLowerCase();
+            const filteredData = stockData.filter(stock => stock.name.toLowerCase().includes(searchTerm) || stock.code.includes(searchTerm));
+            renderStockTable(filteredData);
+        });
+        document.getElementById('ai-stock-search').addEventListener('input', (e) => {
+            const searchTerm = e.target.value.toLowerCase();
+            const filteredData = aiStockData.filter(stock => stock.name.toLowerCase().includes(searchTerm) || stock.code.includes(searchTerm));
+            renderAiStockTable(filteredData);
+        });
+        
+        // 즐겨찾기 아이콘 클릭 (이벤트 위임)
+        document.getElementById('app').addEventListener('click', (e) => {
+            // 테이블 즐겨찾기
+            if (e.target.matches('#stock-table-body .fa-star, #ai-stock-table-body .fa-star')) {
+                const stockId = parseInt(e.target.dataset.id);
+                const stock = stockData.find(s => s.id === stockId);
+                if(stock) {
+                    stock.isFavorite = !stock.isFavorite;
+                    e.target.classList.toggle('text-yellow-400');
+                    e.target.classList.toggle('text-gray-300');
+                    // AI 데이터와 즐겨찾기 상태 동기화
+                    const aiStock = aiStockData.find(s => s.id === stockId);
+                    if(aiStock) aiStock.isFavorite = stock.isFavorite;
+                }
+            }
+            // MY 페이지 즐겨찾기 삭제
+            if (e.target.matches('#favorite-list button')) {
+                const stockId = parseInt(e.target.dataset.id);
+                const stock = stockData.find(s => s.id === stockId);
+                 if(stock) stock.isFavorite = false;
+                 // AI 데이터와 즐겨찾기 상태 동기화
+                 const aiStock = aiStockData.find(s => s.id === stockId);
+                 if(aiStock) aiStock.isFavorite = stock.isFavorite;
+
+                renderFavoriteList();
+                renderStockTable(stockData); // 국내 페이지 테이블도 갱신
+                renderAiStockTable(aiStockData); // AI 분석 페이지 테이블도 갱신
+            }
+        });
+        
+        // --- 초기화 ---
+        renderStockTable(stockData);
+        renderAiStockTable(aiStockData);
+
+    });
+    </script>
+</body>
+</html>
