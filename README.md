@@ -1,2 +1,1 @@
-[.
-](https://iamleeyj.github.io/NextStep_final/)
+(https://iamleeyj.github.io/NextStep_final/)
